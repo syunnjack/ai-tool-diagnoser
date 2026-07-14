@@ -55,6 +55,15 @@ const productJsonLd = JSON.stringify({
     <div class="share-row">
       <span class="share-label">この結果をシェア:</span>
       <a
+        id="share-line"
+        class="btn btn-line"
+        href={`https://line.me/R/msg/text/?${encodeURIComponent(`${diagnosis.title}の結果、私には「${result.name}」タイプが向いているそうです！\n${Astro.url.toString()}`)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        LINEでシェア
+      </a>
+      <a
         id="share-x"
         class="btn btn-secondary"
         href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`${diagnosis.title}の結果、私には「${result.name}」タイプが向いているそうです！`)}&url=${encodeURIComponent(Astro.url.toString())}`}
@@ -255,6 +264,14 @@ const productJsonLd = JSON.stringify({
   .share-label {
     font-size: 0.85rem;
     color: var(--color-muted);
+  }
+  .btn-line {
+    background: #06c755;
+    color: #fff;
+    border: none;
+  }
+  .btn-line:hover {
+    background: #05a848;
   }
   .also-section {
     margin-top: 2rem;

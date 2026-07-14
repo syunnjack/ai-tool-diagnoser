@@ -1,33 +1,36 @@
 ---
-import Layout from '../../layouts/Layout.astro';
-import { tools, getToolBySlug } from '../../data/tools';
+import Layout from '../../../../layouts/Layout.astro';
+import { diagnoses } from '../../../../data/diagnoses';
 
 export function getStaticPaths() {
-  return tools.map((tool) => ({
-    params: { slug: tool.slug },
-    props: { tool },
-  }));
+  return diagnoses.flatMap((diagnosis) =>
+    diagnosis.results.map((result) => ({
+      params: { diagnosis: diagnosis.slug, result: result.slug },
+      props: { diagnosis, result },
+    }))
+  );
 }
 
-const { tool } = Astro.props;
-const ogImageUrl = new URL(`/og/${tool.slug}.png`, Astro.site).toString();
-const pageTitle = `診断結果: ${tool.name}があなたにおすすめ | AIツール診断`;
-const pageDescription = `AIツール診断の結果、あなたには「${tool.name}」タイプが向いています。${tool.reasonTemplate}`;
+const { diagnosis, result } = Astro.props;
+const ogImageUrl = new URL(`/og/${diagnosis.slug}--${result.slug}.png`, Astro.site).toString();
+const pageTitle = `診断結果: ${result.name}があなたにおすすめ | ${diagnosis.title}`;
+const pageDescription = `${diagnosis.title}の結果、あなたには「${result.name}」タイプが向いています。${result.reasonTemplate}`;
 
 const breadcrumbJsonLd = JSON.stringify({
   '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
   itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'AIツール診断', item: new URL('/', Astro.site).toString() },
-    { '@type': 'ListItem', position: 2, name: tool.name },
+    { '@type': 'ListItem', position: 1, name: 'かんたん診断', item: new URL('/', Astro.site).toString() },
+    { '@type': 'ListItem', position: 2, name: diagnosis.title, item: new URL(`/diagnosis/${diagnosis.slug}/`, Astro.site).toString() },
+    { '@type': 'ListItem', position: 3, name: result.name },
   ],
 });
 const productJsonLd = JSON.stringify({
   '@context': 'https://schema.org',
   '@type': 'Product',
-  name: tool.name,
-  description: tool.description,
-  category: tool.category,
+  name: result.name,
+  description: result.description,
+  category: result.category,
 });
 ---
 
@@ -35,16 +38,18 @@ const productJsonLd = JSON.stringify({
   <script slot="head" type="application/ld+json" set:html={breadcrumbJsonLd} />
   <script slot="head" type="application/ld+json" set:html={productJsonLd} />
 
-  <nav class="breadcrumb"><a href="/">AIツール診断</a> &gt; {tool.name}</nav>
+  <nav class="breadcrumb">
+    <a href="/">かんたん診断</a> &gt; <a href={`/diagnosis/${diagnosis.slug}/`}>{diagnosis.title}</a> &gt; {result.name}
+  </nav>
 
-  <section class="card result-card" style={`--accent: ${tool.accentColor}`}>
-    <p class="result-eyebrow">診断結果</p>
-    <h1>あなたには「{tool.name}」が向いています</h1>
-    <p class="result-reason">{tool.reasonTemplate}</p>
-    <p>{tool.description}</p>
+  <section class="card result-card" style={`--accent: ${result.accentColor}`}>
+    <p class="result-eyebrow">{diagnosis.title} 診断結果</p>
+    <h1>あなたには「{result.name}」が向いています</h1>
+    <p class="result-reason">{result.reasonTemplate}</p>
+    <p>{result.description}</p>
 
-    <a href={tool.link} class="btn btn-primary" target="_blank" rel="noopener noreferrer sponsored">
-      {tool.name}を詳しく見る
+    <a href={result.link} class="btn btn-primary" target="_blank" rel="noopener noreferrer sponsored">
+      {result.name}を詳しく見る
     </a>
 
     <div class="share-row">
@@ -52,7 +57,7 @@ const productJsonLd = JSON.stringify({
       <a
         id="share-x"
         class="btn btn-secondary"
-        href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`AIツール診断の結果、私には「${tool.name}」タイプが向いているそうです！`)}&url=${encodeURIComponent(Astro.url.toString())}`}
+        href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`${diagnosis.title}の結果、私には「${result.name}」タイプが向いているそうです！`)}&url=${encodeURIComponent(Astro.url.toString())}`}
         target="_blank"
         rel="noopener noreferrer"
       >
@@ -103,26 +108,26 @@ const productJsonLd = JSON.stringify({
     </details>
   </section>
 
-  <a href="/" class="restart-link">もう一度診断する</a>
+  <a href={`/diagnosis/${diagnosis.slug}/`} class="restart-link">もう一度診断する</a>
 </Layout>
 
-<script define:vars={{ toolSlug: tool.slug, allTools: tools }}>
+<script define:vars={{ diagnosisSlug: diagnosis.slug, resultSlug: result.slug, allResults: diagnosis.results }}>
   const alsoSection = document.getElementById('also-section');
   const alsoList = document.getElementById('also-list');
   const params = new URLSearchParams(window.location.search);
   const alsoSlugs = (params.get('also') || '').split(',').filter(Boolean);
 
   if (alsoSlugs.length > 0) {
-    const alsoTools = alsoSlugs
-      .map((slug) => allTools.find((t) => t.slug === slug))
+    const alsoResults = alsoSlugs
+      .map((slug) => allResults.find((t) => t.slug === slug))
       .filter(Boolean);
 
-    if (alsoTools.length > 0) {
+    if (alsoResults.length > 0) {
       alsoSection.classList.remove('hidden');
-      alsoList.innerHTML = alsoTools
+      alsoList.innerHTML = alsoResults
         .map(
           (t) => `
-            <a class="also-card" href="/result/${t.slug}/">
+            <a class="also-card" href="/diagnosis/${diagnosisSlug}/result/${t.slug}/">
               <strong>${t.name}</strong>
               <p>${t.description}</p>
             </a>
@@ -149,6 +154,7 @@ const productJsonLd = JSON.stringify({
   const reviewForm = document.getElementById('review-form');
   const reviewError = document.getElementById('review-error');
   const REVIEWS_API = '/api/reviews.php';
+  const itemKey = `${diagnosisSlug}:${resultSlug}`;
 
   function renderReviews(reviews) {
     if (!reviews.length) {
@@ -179,7 +185,7 @@ const productJsonLd = JSON.stringify({
 
   async function loadReviews() {
     try {
-      const res = await fetch(`${REVIEWS_API}?tool=${encodeURIComponent(toolSlug)}`);
+      const res = await fetch(`${REVIEWS_API}?item=${encodeURIComponent(itemKey)}`);
       if (!res.ok) throw new Error('failed');
       const reviews = await res.json();
       renderReviews(reviews);
@@ -192,7 +198,7 @@ const productJsonLd = JSON.stringify({
     e.preventDefault();
     reviewError.classList.add('hidden');
     const formData = new FormData(reviewForm);
-    formData.set('tool', toolSlug);
+    formData.set('item', itemKey);
 
     try {
       const res = await fetch(REVIEWS_API, { method: 'POST', body: formData });
@@ -257,7 +263,6 @@ const productJsonLd = JSON.stringify({
   .review-error.hidden {
     display: none;
   }
-  .also-list,
   #also-list {
     display: grid;
     gap: 0.75rem;

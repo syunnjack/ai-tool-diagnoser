@@ -10,14 +10,10 @@ header('Content-Type: application/json; charset=utf-8');
 $dbPath = __DIR__ . '/../../data/reviews.sqlite';
 
 const NG_WORDS = ['http://', 'https://', 'www.', '死ね', '殺す', 'バカ', 'カス'];
-const VALID_TOOL_SLUGS = [
-    'chat-writing-ai',
-    'image-generation-ai',
-    'coding-assist-ai',
-    'research-ai',
-    'free-lightweight-ai',
-    'automation-ai',
-];
+
+// item は "{診断スラッグ}:{結果スラッグ}" 形式。診断カテゴリを追加するたびに
+// このファイルを更新しなくて済むよう、ホワイトリストではなく形式チェックのみ行う。
+const ITEM_KEY_PATTERN = '/^[a-z0-9-]+:[a-z0-9-]+$/';
 
 function respond(int $status, array $body): never
 {
@@ -45,7 +41,7 @@ function getDb(string $dbPath): PDO
         $pdo->exec('
             CREATE TABLE reviews (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                tool_slug TEXT NOT NULL,
+                item_key TEXT NOT NULL,
                 nickname TEXT NOT NULL DEFAULT "匿名",
                 rating INTEGER NOT NULL,
                 comment TEXT NOT NULL,
@@ -53,7 +49,7 @@ function getDb(string $dbPath): PDO
                 created_at TEXT NOT NULL
             )
         ');
-        $pdo->exec('CREATE INDEX idx_reviews_tool_slug ON reviews (tool_slug)');
+        $pdo->exec('CREATE INDEX idx_reviews_item_key ON reviews (item_key)');
     }
 
     return $pdo;
@@ -69,13 +65,13 @@ $pdo = getDb($dbPath);
 $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'GET') {
-    $tool = $_GET['tool'] ?? '';
-    if (!in_array($tool, VALID_TOOL_SLUGS, true)) {
-        respond(400, ['error' => '不正なtoolパラメータです。']);
+    $item = $_GET['item'] ?? '';
+    if (!preg_match(ITEM_KEY_PATTERN, $item)) {
+        respond(400, ['error' => '不正なitemパラメータです。']);
     }
 
-    $stmt = $pdo->prepare('SELECT nickname, rating, comment, created_at FROM reviews WHERE tool_slug = :tool ORDER BY created_at DESC LIMIT 50');
-    $stmt->execute(['tool' => $tool]);
+    $stmt = $pdo->prepare('SELECT nickname, rating, comment, created_at FROM reviews WHERE item_key = :item ORDER BY created_at DESC LIMIT 50');
+    $stmt->execute(['item' => $item]);
     respond(200, $stmt->fetchAll(PDO::FETCH_ASSOC));
 }
 
@@ -85,13 +81,13 @@ if ($method === 'POST') {
         respond(200, ['ok' => true]);
     }
 
-    $tool = $_POST['tool'] ?? '';
+    $item = $_POST['item'] ?? '';
     $nickname = trim((string) ($_POST['nickname'] ?? ''));
     $rating = filter_var($_POST['rating'] ?? '', FILTER_VALIDATE_INT);
     $comment = trim((string) ($_POST['comment'] ?? ''));
 
-    if (!in_array($tool, VALID_TOOL_SLUGS, true)) {
-        respond(400, ['error' => '不正なtoolパラメータです。']);
+    if (!preg_match(ITEM_KEY_PATTERN, $item)) {
+        respond(400, ['error' => '不正なitemパラメータです。']);
     }
     if ($rating === false || $rating < 1 || $rating > 5) {
         respond(422, ['error' => '評価は1〜5の範囲で選択してください。']);
@@ -111,10 +107,10 @@ if ($method === 'POST') {
 
     $ipHash = clientIpHash();
 
-    // 簡易レート制限: 同一IP・同一ツールへの30秒以内の連投を防ぐ
-    $recent = $pdo->prepare('SELECT COUNT(*) FROM reviews WHERE tool_slug = :tool AND ip_hash = :ip AND created_at > :since');
+    // 簡易レート制限: 同一IP・同一itemへの30秒以内の連投を防ぐ
+    $recent = $pdo->prepare('SELECT COUNT(*) FROM reviews WHERE item_key = :item AND ip_hash = :ip AND created_at > :since');
     $recent->execute([
-        'tool' => $tool,
+        'item' => $item,
         'ip' => $ipHash,
         'since' => gmdate('Y-m-d\TH:i:s\Z', time() - 30),
     ]);
@@ -122,9 +118,9 @@ if ($method === 'POST') {
         respond(429, ['error' => '投稿間隔が短すぎます。しばらく待ってから再度お試しください。']);
     }
 
-    $insert = $pdo->prepare('INSERT INTO reviews (tool_slug, nickname, rating, comment, ip_hash, created_at) VALUES (:tool, :nickname, :rating, :comment, :ip, :created_at)');
+    $insert = $pdo->prepare('INSERT INTO reviews (item_key, nickname, rating, comment, ip_hash, created_at) VALUES (:item, :nickname, :rating, :comment, :ip, :created_at)');
     $insert->execute([
-        'tool' => $tool,
+        'item' => $item,
         'nickname' => $nickname !== '' ? $nickname : '匿名',
         'rating' => $rating,
         'comment' => $comment,

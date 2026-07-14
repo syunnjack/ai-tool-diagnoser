@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { tools } from '../data/tools';
+import { diagnoses } from '../data/diagnoses';
 
 export const GET: APIRoute = ({ site }) => {
   const base = site?.toString().replace(/\/$/, '') ?? '';
@@ -7,7 +7,13 @@ export const GET: APIRoute = ({ site }) => {
   const urls = [
     { loc: `${base}/`, priority: '1.0' },
     { loc: `${base}/about/`, priority: '0.3' },
-    ...tools.map((tool) => ({ loc: `${base}/result/${tool.slug}/`, priority: '0.8' })),
+    ...diagnoses.flatMap((diagnosis) => [
+      { loc: `${base}/diagnosis/${diagnosis.slug}/`, priority: '0.9' },
+      ...diagnosis.results.map((result) => ({
+        loc: `${base}/diagnosis/${diagnosis.slug}/result/${result.slug}/`,
+        priority: '0.8',
+      })),
+    ]),
   ];
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>

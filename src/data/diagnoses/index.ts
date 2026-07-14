@@ -11,6 +11,11 @@ import { hairRemovalSalon } from './hair-removal-salon';
 import { waterServer } from './water-server';
 import { marriageAgency } from './marriage-agency';
 import { fxInvestment } from './fx-investment';
+import { customHome } from './custom-home';
+import { moving } from './moving';
+import { reform } from './reform';
+import { carSale } from './car-sale';
+import { kidsEducation } from './kids-education';
 
 export const diagnoses: Diagnosis[] = [
   aiTools,
@@ -25,6 +30,11 @@ export const diagnoses: Diagnosis[] = [
   waterServer,
   marriageAgency,
   fxInvestment,
+  customHome,
+  moving,
+  reform,
+  carSale,
+  kidsEducation,
 ];
 
 export function getDiagnosisBySlug(slug: string): Diagnosis | undefined {

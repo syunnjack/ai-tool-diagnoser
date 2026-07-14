@@ -6,6 +6,11 @@ import { programmingSchool } from './programming-school';
 import { videoStreaming } from './video-streaming';
 import { personalGym } from './personal-gym';
 import { qualification } from './qualification';
+import { insurance } from './insurance';
+import { hairRemovalSalon } from './hair-removal-salon';
+import { waterServer } from './water-server';
+import { marriageAgency } from './marriage-agency';
+import { fxInvestment } from './fx-investment';
 
 export const diagnoses: Diagnosis[] = [
   aiTools,
@@ -15,6 +20,11 @@ export const diagnoses: Diagnosis[] = [
   videoStreaming,
   personalGym,
   qualification,
+  insurance,
+  hairRemovalSalon,
+  waterServer,
+  marriageAgency,
+  fxInvestment,
 ];
 
 export function getDiagnosisBySlug(slug: string): Diagnosis | undefined {

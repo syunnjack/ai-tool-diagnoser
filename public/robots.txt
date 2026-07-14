@@ -1,0 +1,4 @@
+User-agent: *
+Disallow:
+
+Sitemap: https://ai-tool-diagnoser.example.com/sitemap.xml

@@ -1,0 +1,68 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+  title="このサイトについて | AIツール診断"
+  description="AIツール診断の運営方針、診断ロジック、口コミの取り扱いについて説明しています。"
+>
+  <h1>このサイトについて</h1>
+
+  <section class="card">
+    <h2>サイトの目的</h2>
+    <p>
+      「AIツール診断」は、5つの質問に答えるだけで、目的・予算・利用レベルに合ったAIツールのタイプを診断できるサイトです。
+      診断結果には、実際に使った人の口コミもあわせて掲載しています。
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>診断ロジックについて</h2>
+    <p>
+      各質問の回答には「タグ」が紐づいており、選んだ回答のタグと、各AIツールタイプが持つタグの一致数をスコアリングして、最もスコアの高いタイプを提案しています。
+      AI・機械学習による判定ではなく、単純なルールベースのロジックです。診断結果はあくまで参考情報としてご利用ください。
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>紹介リンクについて</h2>
+    <p>
+      各診断結果ページに掲載しているリンクの一部はアフィリエイトリンクです。リンク経由でサービスに登録・購入いただいた場合、当サイトに紹介料が支払われることがあります。
+      紹介料の有無によって診断結果やおすすめの順位を操作することはありません。
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>口コミについて</h2>
+    <p>
+      口コミは、どなたでもログイン不要で投稿できます。投稿内容は運営による事前確認を行わず即時公開されますが、
+      不適切な投稿を発見された場合は内容を精査のうえ対応します。口コミはあくまで投稿者個人の感想であり、
+      当サイトが内容の正確性を保証するものではありません。
+    </p>
+  </section>
+
+  <a href="/" class="restart-link">診断トップに戻る</a>
+</Layout>
+
+<style>
+  h1 {
+    font-size: 1.5rem;
+  }
+  .card {
+    margin-bottom: 1.25rem;
+  }
+  .card h2 {
+    font-size: 1.05rem;
+    margin-top: 0;
+  }
+  .card p {
+    font-size: 0.9rem;
+    color: var(--color-muted);
+  }
+  .restart-link {
+    display: block;
+    text-align: center;
+    margin-top: 1.5rem;
+    color: var(--color-muted);
+  }
+</style>

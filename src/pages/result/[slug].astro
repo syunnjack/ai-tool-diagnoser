@@ -1,0 +1,324 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { tools, getToolBySlug } from '../../data/tools';
+
+export function getStaticPaths() {
+  return tools.map((tool) => ({
+    params: { slug: tool.slug },
+    props: { tool },
+  }));
+}
+
+const { tool } = Astro.props;
+const ogImageUrl = new URL(`/og/${tool.slug}.png`, Astro.site).toString();
+const pageTitle = `診断結果: ${tool.name}があなたにおすすめ | AIツール診断`;
+const pageDescription = `AIツール診断の結果、あなたには「${tool.name}」タイプが向いています。${tool.reasonTemplate}`;
+
+const breadcrumbJsonLd = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'AIツール診断', item: new URL('/', Astro.site).toString() },
+    { '@type': 'ListItem', position: 2, name: tool.name },
+  ],
+});
+const productJsonLd = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'Product',
+  name: tool.name,
+  description: tool.description,
+  category: tool.category,
+});
+---
+
+<Layout title={pageTitle} description={pageDescription} ogImage={ogImageUrl}>
+  <script slot="head" type="application/ld+json" set:html={breadcrumbJsonLd} />
+  <script slot="head" type="application/ld+json" set:html={productJsonLd} />
+
+  <nav class="breadcrumb"><a href="/">AIツール診断</a> &gt; {tool.name}</nav>
+
+  <section class="card result-card" style={`--accent: ${tool.accentColor}`}>
+    <p class="result-eyebrow">診断結果</p>
+    <h1>あなたには「{tool.name}」が向いています</h1>
+    <p class="result-reason">{tool.reasonTemplate}</p>
+    <p>{tool.description}</p>
+
+    <a href={tool.link} class="btn btn-primary" target="_blank" rel="noopener noreferrer sponsored">
+      {tool.name}を詳しく見る
+    </a>
+
+    <div class="share-row">
+      <span class="share-label">この結果をシェア:</span>
+      <a
+        id="share-x"
+        class="btn btn-secondary"
+        href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`AIツール診断の結果、私には「${tool.name}」タイプが向いているそうです！`)}&url=${encodeURIComponent(Astro.url.toString())}`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Xでシェア
+      </a>
+      <button id="copy-link-btn" class="btn btn-secondary" type="button">リンクをコピー</button>
+    </div>
+  </section>
+
+  <section id="also-section" class="also-section hidden">
+    <h2>他にも近いタイプがありました</h2>
+    <div id="also-list"></div>
+  </section>
+
+  <section class="reviews-section">
+    <h2>みんなの口コミ</h2>
+    <div id="review-summary" class="review-summary">読み込み中...</div>
+    <div id="review-list"></div>
+
+    <details class="review-form-details">
+      <summary>口コミを投稿する</summary>
+      <form id="review-form">
+        <div style="position:absolute;left:-9999px;" aria-hidden="true">
+          <label>ウェブサイト <input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
+        </div>
+        <div class="form-row">
+          <label for="nickname">ニックネーム（任意）</label>
+          <input type="text" id="nickname" name="nickname" maxlength="30" />
+        </div>
+        <div class="form-row">
+          <label for="rating">評価</label>
+          <select id="rating" name="rating" required>
+            <option value="">選択してください</option>
+            <option value="5">★★★★★</option>
+            <option value="4">★★★★☆</option>
+            <option value="3">★★★☆☆</option>
+            <option value="2">★★☆☆☆</option>
+            <option value="1">★☆☆☆☆</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="comment">口コミ</label>
+          <textarea id="comment" name="comment" rows="3" minlength="5" maxlength="1000" required></textarea>
+        </div>
+        <p id="review-error" class="review-error hidden"></p>
+        <button type="submit" class="btn btn-primary">投稿する</button>
+      </form>
+    </details>
+  </section>
+
+  <a href="/" class="restart-link">もう一度診断する</a>
+</Layout>
+
+<script define:vars={{ toolSlug: tool.slug, allTools: tools }}>
+  const alsoSection = document.getElementById('also-section');
+  const alsoList = document.getElementById('also-list');
+  const params = new URLSearchParams(window.location.search);
+  const alsoSlugs = (params.get('also') || '').split(',').filter(Boolean);
+
+  if (alsoSlugs.length > 0) {
+    const alsoTools = alsoSlugs
+      .map((slug) => allTools.find((t) => t.slug === slug))
+      .filter(Boolean);
+
+    if (alsoTools.length > 0) {
+      alsoSection.classList.remove('hidden');
+      alsoList.innerHTML = alsoTools
+        .map(
+          (t) => `
+            <a class="also-card" href="/result/${t.slug}/">
+              <strong>${t.name}</strong>
+              <p>${t.description}</p>
+            </a>
+          `
+        )
+        .join('');
+    }
+  }
+
+  const copyBtn = document.getElementById('copy-link-btn');
+  copyBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      copyBtn.textContent = 'コピーしました！';
+      setTimeout(() => (copyBtn.textContent = 'リンクをコピー'), 2000);
+    } catch {
+      alert('コピーに失敗しました。URLを手動でコピーしてください。');
+    }
+  });
+
+  // ------- 口コミ -------
+  const reviewSummary = document.getElementById('review-summary');
+  const reviewList = document.getElementById('review-list');
+  const reviewForm = document.getElementById('review-form');
+  const reviewError = document.getElementById('review-error');
+  const REVIEWS_API = '/api/reviews.php';
+
+  function renderReviews(reviews) {
+    if (!reviews.length) {
+      reviewSummary.textContent = 'まだ口コミがありません。最初の口コミを投稿してみませんか？';
+      reviewList.innerHTML = '';
+      return;
+    }
+    const avg = (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1);
+    reviewSummary.textContent = `口コミ ${reviews.length}件（平均★${avg}）`;
+    reviewList.innerHTML = reviews
+      .map(
+        (r) => `
+          <div class="review-item">
+            <div>${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)} <strong>${escapeHtml(r.nickname)}</strong>
+            <span class="review-date">${escapeHtml(r.created_at || '')}</span></div>
+            <div>${escapeHtml(r.comment)}</div>
+          </div>
+        `
+      )
+      .join('');
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str ?? '';
+    return div.innerHTML;
+  }
+
+  async function loadReviews() {
+    try {
+      const res = await fetch(`${REVIEWS_API}?tool=${encodeURIComponent(toolSlug)}`);
+      if (!res.ok) throw new Error('failed');
+      const reviews = await res.json();
+      renderReviews(reviews);
+    } catch {
+      reviewSummary.textContent = '口コミの読み込みに失敗しました。';
+    }
+  }
+
+  reviewForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    reviewError.classList.add('hidden');
+    const formData = new FormData(reviewForm);
+    formData.set('tool', toolSlug);
+
+    try {
+      const res = await fetch(REVIEWS_API, { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) {
+        reviewError.textContent = data.error || '投稿に失敗しました。';
+        reviewError.classList.remove('hidden');
+        return;
+      }
+      reviewForm.reset();
+      loadReviews();
+    } catch {
+      reviewError.textContent = '通信エラーが発生しました。';
+      reviewError.classList.remove('hidden');
+    }
+  });
+
+  loadReviews();
+</script>
+
+<style>
+  .breadcrumb {
+    font-size: 0.8rem;
+    color: var(--color-muted);
+    margin-bottom: 1rem;
+  }
+  .breadcrumb a {
+    color: var(--color-muted);
+  }
+  .result-card {
+    border-top: 6px solid var(--accent, var(--color-primary));
+  }
+  .result-eyebrow {
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    color: var(--color-muted);
+    margin: 0 0 0.25rem;
+  }
+  .result-card h1 {
+    font-size: 1.4rem;
+    margin: 0 0 0.75rem;
+  }
+  .result-reason {
+    font-weight: 700;
+  }
+  .share-row {
+    margin-top: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+  .share-label {
+    font-size: 0.85rem;
+    color: var(--color-muted);
+  }
+  .also-section {
+    margin-top: 2rem;
+  }
+  .also-section.hidden,
+  .review-error.hidden {
+    display: none;
+  }
+  .also-list,
+  #also-list {
+    display: grid;
+    gap: 0.75rem;
+  }
+  .also-card {
+    display: block;
+    background: var(--color-card);
+    border-radius: var(--radius);
+    padding: 1rem;
+    text-decoration: none;
+    color: var(--color-text);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+  .also-card p {
+    margin: 0.25rem 0 0;
+    font-size: 0.85rem;
+    color: var(--color-muted);
+  }
+  .reviews-section {
+    margin-top: 2.5rem;
+  }
+  .review-summary {
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+  }
+  .review-item {
+    background: var(--color-card);
+    border-radius: var(--radius);
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.6rem;
+    font-size: 0.9rem;
+  }
+  .review-date {
+    color: var(--color-muted);
+    font-size: 0.8rem;
+  }
+  .review-form-details {
+    margin-top: 1.25rem;
+  }
+  .form-row {
+    margin-bottom: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .form-row input,
+  .form-row select,
+  .form-row textarea {
+    padding: 0.6rem;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    font-size: 1rem;
+  }
+  .review-error {
+    color: #dc2626;
+    font-size: 0.85rem;
+  }
+  .restart-link {
+    display: block;
+    text-align: center;
+    margin-top: 2rem;
+    color: var(--color-muted);
+  }
+</style>

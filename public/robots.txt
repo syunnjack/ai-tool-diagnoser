@@ -1,4 +1,4 @@
 User-agent: *
-Disallow:
+Allow: /
 
-Sitemap: https://kantan-shindan.jp/sitemap.xml
+Sitemap: https://ai-tool-diagnoser.vercel.app/sitemap.xml
